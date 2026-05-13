@@ -300,8 +300,8 @@ def _run_streaming_job(conversation_id: str, stream_id: str, ai_provider: str, u
 				"content": full_content,
 				"timestamp": frappe.utils.now(),
 				"tokens_used": tokens_used,
-				"tool_calls": json.dumps(tool_calls_data) if tool_calls_data else None,
-				"tool_results": json.dumps(tool_results_data) if tool_results_data else None,
+				"tool_calls": _safe_json(tool_calls_data) if tool_calls_data else None,
+				"tool_results": _safe_json(tool_results_data) if tool_results_data else None,
 			}
 		).insert()
 
@@ -522,13 +522,20 @@ def _stream_with_tools(
 		if ai_provider in ("OpenAI", "Gemini"):
 			openai_tool_calls = []
 			for tc in round_tool_calls:
+				try:
+				    args_str = json.dumps(tc["arguments"])
+				except TypeError:
+				    log_error(f"Non-serializable tool args for {tc['name']}: {tc['arguments']!r}",
+				              title="Streaming Tool Args")
+				    args_str = _safe_json(tc["arguments"])
+
 				openai_tool_calls.append(
 					{
 						"id": tc["id"],
 						"type": "function",
 						"function": {
 							"name": tc["name"],
-							"arguments": json.dumps(tc["arguments"]),
+							"arguments": args_str,
 						},
 					}
 				)
@@ -581,7 +588,7 @@ def _stream_with_tools(
 				history.append(
 					{
 						"role": "tool",
-						"content": json.dumps(loop_error),
+						"content": _safe_json(loop_error),
 						"tool_call_id": tc["id"],
 					}
 				)
@@ -637,7 +644,7 @@ def _stream_with_tools(
 			history.append(
 				{
 					"role": "tool",
-					"content": json.dumps(result),
+					"content": _safe_json(result),
 					"tool_call_id": tc["id"],
 				}
 			)
@@ -830,3 +837,6 @@ def _estimate_tokens(content: str, history: list[dict]) -> int:
 	for msg in history:
 		total_chars += len(msg.get("content") or "")
 	return total_chars // 4
+
+def _safe_json(obj) -> str:
+	return json.dumps(obj, default=str)
