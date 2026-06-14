@@ -161,14 +161,23 @@ class OpenAIProvider(AIProvider):
 			frappe.throw("API Key is required for OpenAI")
 		return True
 
+	def _auth_headers(self) -> dict:
+		"""Auth headers for this provider. Subclasses override for non-bearer schemes."""
+		return {"Authorization": f"Bearer {self.api_key}"}
+
+	def _endpoint_url(self) -> str:
+		"""Full chat-completions URL. Subclasses override for non-standard layouts."""
+		return f"{self.base_url}/chat/completions"
+
+	def _request_kwargs(self) -> dict:
+		"""Extra kwargs (e.g. query params) for requests.post. Subclasses override."""
+		return {}
+
 	def chat_completion(self, messages, tools=None, stream=False):
 		"""OpenAI Chat Completion (non-streaming)"""
 		self.validate_settings()
 
-		headers = {
-			"Authorization": f"Bearer {self.api_key}",
-			"Content-Type": "application/json",
-		}
+		headers = {**self._auth_headers(), "Content-Type": "application/json"}
 
 		payload = {
 			"model": self.model,
@@ -184,10 +193,11 @@ class OpenAIProvider(AIProvider):
 
 		try:
 			response = requests.post(
-				f"{self.base_url}/chat/completions",
+				self._endpoint_url(),
 				headers=headers,
 				json=payload,
 				timeout=120,
+				**self._request_kwargs(),
 			)
 			response.raise_for_status()
 			return response.json()
@@ -203,10 +213,7 @@ class OpenAIProvider(AIProvider):
 		"""
 		self.validate_settings()
 
-		headers = {
-			"Authorization": f"Bearer {self.api_key}",
-			"Content-Type": "application/json",
-		}
+		headers = {**self._auth_headers(), "Content-Type": "application/json"}
 
 		payload = {
 			"model": self.model,
@@ -223,11 +230,12 @@ class OpenAIProvider(AIProvider):
 
 		try:
 			response = requests.post(
-				f"{self.base_url}/chat/completions",
+				self._endpoint_url(),
 				headers=headers,
 				json=payload,
 				stream=True,
 				timeout=120,
+				**self._request_kwargs(),
 			)
 			response.raise_for_status()
 
@@ -378,6 +386,57 @@ class GeminiProvider(OpenAIProvider):
 				f"tools={'yes' if tools else 'no'}",
 				title="Gemini Empty Stream",
 			)
+
+
+AZURE_OPENAI_DEFAULT_API_VERSION = "2024-08-01-preview"
+
+
+class AzureOpenAIProvider(OpenAIProvider):
+	"""Azure OpenAI Service provider.
+
+	Uses the OpenAI Chat Completions wire format but with three differences:
+	- Endpoint URL is per-deployment: https://{resource}.openai.azure.com/openai/deployments/{deployment}
+	- Auth header is ``api-key: <key>`` (not bearer)
+	- An ``api-version`` query parameter is required on every request
+
+	The deployment name takes the place of the model identifier — Azure routes by
+	deployment, not by model. If the user leaves the ``model`` field blank, we
+	send the deployment name as the model in the body for compatibility.
+	"""
+
+	provider_name = "Azure OpenAI"
+
+	def __init__(self, settings):
+		# Skip OpenAIProvider.__init__ — we set fields ourselves
+		AIProvider.__init__(self, settings)
+		self.api_key = settings.get("api_key")
+		self.resource = settings.get("azure_resource_name")
+		self.deployment = settings.get("azure_deployment_name")
+		self.api_version = settings.get("azure_api_version") or AZURE_OPENAI_DEFAULT_API_VERSION
+		# Azure routes by deployment in the URL; model in body is informational only.
+		self.model = settings.get("model") or self.deployment
+		self.temperature = settings.get("temperature") or 0.7
+		self.max_tokens = settings.get("max_tokens") or 4000
+		self.base_url = (
+			f"https://{self.resource}.openai.azure.com/openai/deployments/{self.deployment}"
+			if self.resource and self.deployment
+			else ""
+		)
+
+	def validate_settings(self):
+		if not self.api_key:
+			frappe.throw("API Key is required for Azure OpenAI")
+		if not self.resource:
+			frappe.throw("Azure Resource Name is required (the prefix in https://<resource>.openai.azure.com).")
+		if not self.deployment:
+			frappe.throw("Azure Deployment Name is required (the deployment you created in Azure OpenAI Studio).")
+		return True
+
+	def _auth_headers(self) -> dict:
+		return {"api-key": self.api_key}
+
+	def _request_kwargs(self) -> dict:
+		return {"params": {"api-version": self.api_version}}
 
 
 class ClaudeProvider(AIProvider):
@@ -732,12 +791,19 @@ def _resolve_settings(provider_name: str) -> dict:
 
 	api_key = settings.get_password("api_key") if sd.get("api_key") else None
 
-	return {
+	resolved = {
 		"api_key": api_key,
 		"model": sd.get("model") or DEFAULT_MODELS.get(provider_name),
 		"temperature": sd.get("temperature") or 0.7,
 		"max_tokens": sd.get("max_tokens") or 4000,
 	}
+
+	if provider_name == "Azure OpenAI":
+		resolved["azure_resource_name"] = sd.get("azure_resource_name")
+		resolved["azure_deployment_name"] = sd.get("azure_deployment_name")
+		resolved["azure_api_version"] = sd.get("azure_api_version")
+
+	return resolved
 
 
 def get_ai_provider(provider_name: str) -> AIProvider:
@@ -750,6 +816,8 @@ def get_ai_provider(provider_name: str) -> AIProvider:
 		return ClaudeProvider(resolved)
 	elif provider_name == "Gemini":
 		return GeminiProvider(resolved)
+	elif provider_name == "Azure OpenAI":
+		return AzureOpenAIProvider(resolved)
 	else:
 		frappe.throw(f"Unknown AI provider: {provider_name}")
 
@@ -767,7 +835,10 @@ def get_summary_provider(provider_name: str) -> AIProvider:
 		AIProvider instance configured for summarisation.
 	"""
 	resolved = _resolve_settings(provider_name)
-	resolved["model"] = SUMMARY_MODELS.get(provider_name, resolved["model"])
+	# For Azure there's no separate "cheap" deployment — fall through to the configured one.
+	summary_model = SUMMARY_MODELS.get(provider_name)
+	if summary_model:
+		resolved["model"] = summary_model
 	resolved["max_tokens"] = 500
 	resolved["temperature"] = 0.3
 
@@ -777,6 +848,8 @@ def get_summary_provider(provider_name: str) -> AIProvider:
 		return ClaudeProvider(resolved)
 	elif provider_name == "Gemini":
 		return GeminiProvider(resolved)
+	elif provider_name == "Azure OpenAI":
+		return AzureOpenAIProvider(resolved)
 	else:
 		frappe.throw(f"Unknown provider for summarisation: {provider_name}")
 
@@ -812,12 +885,19 @@ def get_fallback_provider(primary_provider_name: str) -> AIProvider | None:
 			"max_tokens": settings.as_dict().get("max_tokens") or 4000,
 		}
 
+		if fallback_name == "Azure OpenAI":
+			resolved["azure_resource_name"] = getattr(settings, "fallback_azure_resource_name", None)
+			resolved["azure_deployment_name"] = getattr(settings, "fallback_azure_deployment_name", None)
+			resolved["azure_api_version"] = getattr(settings, "fallback_azure_api_version", None)
+
 		if fallback_name == "OpenAI":
 			return OpenAIProvider(resolved)
 		elif fallback_name == "Claude":
 			return ClaudeProvider(resolved)
 		elif fallback_name == "Gemini":
 			return GeminiProvider(resolved)
+		elif fallback_name == "Azure OpenAI":
+			return AzureOpenAIProvider(resolved)
 	except Exception:
 		pass
 

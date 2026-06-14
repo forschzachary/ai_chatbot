@@ -10,6 +10,9 @@
   "ai_provider",
   "api_key",
   "model",
+  "azure_resource_name",
+  "azure_deployment_name",
+  "azure_api_version",
   "column_break_api",
   "temperature",
   "max_tokens",
@@ -18,6 +21,9 @@
   "fallback_provider",
   "fallback_api_key",
   "fallback_model",
+  "fallback_azure_resource_name",
+  "fallback_azure_deployment_name",
+  "fallback_azure_api_version",
   "tools_tab",
   "erpnext_tools_section",
   "enable_crm_tools",
@@ -76,7 +82,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "AI Provider",
-   "options": "OpenAI\nClaude\nGemini",
+   "options": "OpenAI\nClaude\nGemini\nAzure OpenAI",
    "reqd": 1
   },
   {
@@ -87,10 +93,34 @@
    "reqd": 1
   },
   {
-   "description": "Model name. Defaults per provider \u2014 OpenAI: gpt-4o, Claude: claude-sonnet-4-5-20250929, Gemini: gemini-2.5-flash.",
+   "description": "Model name. Defaults per provider \u2014 OpenAI: gpt-4o, Claude: claude-sonnet-4-5-20250929, Gemini: gemini-2.5-flash. For Azure OpenAI, leave blank to use the deployment name set below.",
    "fieldname": "model",
    "fieldtype": "Data",
    "label": "Model"
+  },
+  {
+   "depends_on": "eval:doc.ai_provider == 'Azure OpenAI'",
+   "mandatory_depends_on": "eval:doc.ai_provider == 'Azure OpenAI'",
+   "description": "Azure resource name \u2014 the prefix in your endpoint, e.g. 'mycompany' from https://mycompany.openai.azure.com.",
+   "fieldname": "azure_resource_name",
+   "fieldtype": "Data",
+   "label": "Azure Resource Name"
+  },
+  {
+   "depends_on": "eval:doc.ai_provider == 'Azure OpenAI'",
+   "mandatory_depends_on": "eval:doc.ai_provider == 'Azure OpenAI'",
+   "description": "Azure deployment name \u2014 created in Azure OpenAI Studio. This is what Azure routes by, not the underlying model name.",
+   "fieldname": "azure_deployment_name",
+   "fieldtype": "Data",
+   "label": "Azure Deployment Name"
+  },
+  {
+   "depends_on": "eval:doc.ai_provider == 'Azure OpenAI'",
+   "default": "2024-08-01-preview",
+   "description": "Azure OpenAI API version. Leave default unless you need a specific version for a preview feature.",
+   "fieldname": "azure_api_version",
+   "fieldtype": "Data",
+   "label": "Azure API Version"
   },
   {
    "fieldname": "column_break_api",
@@ -127,7 +157,7 @@
    "fieldname": "fallback_provider",
    "fieldtype": "Select",
    "label": "Fallback AI Provider",
-   "options": "\nOpenAI\nClaude\nGemini"
+   "options": "\nOpenAI\nClaude\nGemini\nAzure OpenAI"
   },
   {
    "depends_on": "eval:doc.fallback_provider",
@@ -138,10 +168,34 @@
   },
   {
    "depends_on": "eval:doc.fallback_provider",
-   "description": "Model for the fallback provider. Leave blank to use the provider's default model.",
+   "description": "Model for the fallback provider. Leave blank to use the provider's default model. For Azure OpenAI fallback, leave blank to use the deployment name.",
    "fieldname": "fallback_model",
    "fieldtype": "Data",
    "label": "Fallback Model"
+  },
+  {
+   "depends_on": "eval:doc.fallback_provider == 'Azure OpenAI'",
+   "mandatory_depends_on": "eval:doc.fallback_provider == 'Azure OpenAI'",
+   "description": "Azure resource name for the fallback provider.",
+   "fieldname": "fallback_azure_resource_name",
+   "fieldtype": "Data",
+   "label": "Fallback Azure Resource Name"
+  },
+  {
+   "depends_on": "eval:doc.fallback_provider == 'Azure OpenAI'",
+   "mandatory_depends_on": "eval:doc.fallback_provider == 'Azure OpenAI'",
+   "description": "Azure deployment name for the fallback provider.",
+   "fieldname": "fallback_azure_deployment_name",
+   "fieldtype": "Data",
+   "label": "Fallback Azure Deployment Name"
+  },
+  {
+   "depends_on": "eval:doc.fallback_provider == 'Azure OpenAI'",
+   "default": "2024-08-01-preview",
+   "description": "Azure OpenAI API version for the fallback provider.",
+   "fieldname": "fallback_azure_api_version",
+   "fieldtype": "Data",
+   "label": "Fallback Azure API Version"
   },
   {
    "fieldname": "tools_tab",
