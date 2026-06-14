@@ -1,6 +1,6 @@
 # AI Chatbot — Tools Reference
 
-Complete reference for all 71 registered business intelligence tools. Each tool is callable by the AI through natural language prompts.
+Complete reference for all 76 registered business intelligence tools. Each tool is callable by the AI through natural language prompts.
 
 All parameters are optional unless marked **(required)**. Date parameters default to the current fiscal year. Company defaults to the user's default company.
 
@@ -655,6 +655,65 @@ Detect unusual transactions and patterns in financial data. Flags large amounts 
 
 ---
 
+## Prescriptive Analytics (5 tools)
+
+Optimisation and recommendation tools. Each builds on the underlying historical data and forecasts to suggest specific actions, with quantified expected impact where possible. Toggle via **Enable Prescriptive Tools** in Chatbot Settings (off by default).
+
+### optimize_inventory
+Recommend Economic Order Quantity (EOQ), safety stock, and reorder point for an item. Combines historical monthly demand with the item's lead time and valuation rate; reports expected annual carrying/order costs and a qualitative stockout risk for current stock.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| item_code | string | **(required)** Item code or item name to optimise |
+| service_level | string | Target service level: '90', '95' (default), or '99' |
+| order_cost | number | Fixed cost per purchase order (default 50) |
+| holding_cost_pct | number | Annual holding cost as a fraction of unit cost (default 0.25) |
+| lead_time_days | integer | Override the item's lead_time_days |
+| company | string | Company name |
+
+### optimize_pricing
+Estimate price elasticity of demand for an item from historical monthly price/quantity and recommend a profit-maximising price. Uses log-log OLS regression; returns elasticity, recommended price, expected volume/margin impact, and a confidence label derived from R².
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| item_code | string | **(required)** Item code or item name to analyse |
+| months_back | integer | Months of history to use (default 12, max 36) |
+| marginal_cost | number | Override the per-unit marginal cost (defaults to item valuation rate) |
+| company | string | Company name |
+
+### optimize_procurement
+Recommend procurement-strategy improvements: supplier consolidation when top-5 share is below target, new-supplier risk flags for abnormally large first orders, and bulk-purchase candidates for frequently-ordered items. Returns a prioritised list of recommendations plus a top-suppliers Pareto chart.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| months_back | integer | Months of purchase history to analyse (default 12, max 24) |
+| company | string | Company name |
+
+### optimize_production_schedule
+Build a monthly production schedule for an item using the Silver-Meal lot-sizing heuristic. Forecasts demand from historical Sales Invoices, groups demand into lots that balance setup against holding cost, and optionally caps each month at a user-supplied capacity (with overflow rolling forward).
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| item_code | string | **(required)** Item code or item name to schedule |
+| months_ahead | integer | Months to schedule (default 6, max 12) |
+| setup_cost | number | Fixed cost per production run (default 100) |
+| holding_cost_pct | number | Annual holding cost as a fraction of unit cost (default 0.25) |
+| monthly_capacity | number | Optional max units producible per month — excess rolls to next month |
+| company | string | Company name |
+
+### optimize_working_capital
+Compute the cash conversion cycle (DSO + DIO − DPO) from current ERPNext balances and recommend payment-terms, credit-policy, or inventory-reduction actions when metrics drift from configurable targets. Each recommendation includes an estimated cash-freed amount.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| months_back | integer | Months of sales/purchase history used to compute daily flow (default 12, max 24) |
+| target_dso | number | Target Days Sales Outstanding (default 45) |
+| target_dpo | number | Target Days Payable Outstanding (default 30) |
+| target_dio | number | Target Days Inventory Outstanding (default 60) |
+| company | string | Company name |
+
+---
+
 ## Operations — Create (3 tools)
 
 ### create_lead
@@ -775,33 +834,6 @@ Update an existing ToDo task.
 | HRMS | 6 |
 | IDP (Document Processing) | 3 |
 | Predictive Analytics | 6 |
+| Prescriptive Analytics | 5 |
 | Operations (Create, Search, Update) | 9 |
-| **Total** | **71** |
-
-### Phase 12B Changes
-
-The following tools were **removed** in Phase 12B and replaced by ERPNext standard report wrappers:
-
-- `get_financial_summary` → replaced by `report_profit_and_loss` + `report_balance_sheet`
-- `get_cash_flow_analysis` → replaced by `report_cash_flow`
-- `get_trial_balance` → replaced by `report_trial_balance`
-- `get_account_statement` → replaced by `report_general_ledger`
-- `get_receivable_aging`, `get_top_debtors` → replaced by `report_accounts_receivable`, `report_accounts_receivable_summary`
-- `get_payable_aging`, `get_top_creditors` → replaced by `report_accounts_payable`, `report_accounts_payable_summary`
-- `get_liquidity_ratios`, `get_profitability_ratios`, `get_efficiency_ratios` → replaced by `report_financial_ratios`
-- `get_working_capital_summary`, `get_cash_conversion_cycle` → replaced by `report_financial_ratios` (turnover ratios)
-- `get_budget_vs_actual`, `get_budget_variance` → replaced by `report_budget_variance`
-- `get_consolidated_report` → replaced by `report_consolidated_financial_statement`, `report_consolidated_trial_balance`
-- `get_cash_flow_statement`, `get_cash_flow_trend` → `get_cash_flow` retained (Payment Entry-based), GL-based statement replaced by `report_cash_flow`
-- `get_profitability_by_customer`, `get_profitability_by_item`, `get_profitability_by_territory` → consolidated into `get_profitability`
-
-### Phase 17 Changes
-
-Added **Holt-Winters forecasting** (double and triple exponential smoothing) to the statistical engine. Revenue, demand, and cash flow forecasts now auto-select Holt-Winters when sufficient history and seasonality are detected.
-
-New tool added:
-- `analyse_trend` — trend analysis using linear regression, growth rates, moving averages, and seasonality detection. Supports revenue, expenses, and item demand metrics.
-
-### Phase 19 Changes
-
-**CFO dashboard FinancialReportEngine (FRE) consistency.** When "Use Financial Report Engine" is enabled in Chatbot Settings, the CFO dashboard tools (`get_cfo_dashboard`, `get_financial_overview`, `get_monthly_comparison`) now route through the FRE template path and extract KPIs from report data rows. A fallback chain ensures data is always returned: FRE template path → standard report_summary path → data row extraction.
+| **Total** | **76** |

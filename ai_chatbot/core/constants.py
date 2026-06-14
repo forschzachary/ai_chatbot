@@ -31,6 +31,7 @@ TOOL_CATEGORIES = {
 	"operations": "enable_write_operations",
 	"idp": "enable_idp_tools",
 	"predictive": "enable_predictive_tools",
+	"prescriptive": "enable_prescriptive_tools",
 }
 
 # Predictive analytics defaults

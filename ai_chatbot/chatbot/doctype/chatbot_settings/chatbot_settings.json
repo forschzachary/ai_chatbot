@@ -36,6 +36,8 @@
   "idp_output_language",
   "predictive_section",
   "enable_predictive_tools",
+  "prescriptive_section",
+  "enable_prescriptive_tools",
   "data_operations_section",
   "enable_write_operations",
   "agent_orchestration_section",
@@ -244,6 +246,18 @@
    "fieldname": "enable_predictive_tools",
    "fieldtype": "Check",
    "label": "Enable Predictive Tools"
+  },
+  {
+   "fieldname": "prescriptive_section",
+   "fieldtype": "Section Break",
+   "label": "Prescriptive Analytics"
+  },
+  {
+   "default": "0",
+   "description": "Enable optimisation/recommendation tools: inventory EOQ + safety stock, pricing elasticity, procurement strategy, production lot sizing (Silver-Meal), and working capital (DSO/DPO/CCC).",
+   "fieldname": "enable_prescriptive_tools",
+   "fieldtype": "Check",
+   "label": "Enable Prescriptive Tools"
   },
   {
    "fieldname": "data_operations_section",

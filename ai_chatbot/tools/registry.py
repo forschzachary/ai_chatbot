@@ -328,6 +328,11 @@ def _ensure_tools_loaded():
 		import ai_chatbot.tools.predictive.demand_forecast
 		import ai_chatbot.tools.predictive.sales_forecast
 		import ai_chatbot.tools.predictive.trends
+		import ai_chatbot.tools.prescriptive.inventory_optimization
+		import ai_chatbot.tools.prescriptive.pricing_optimization
+		import ai_chatbot.tools.prescriptive.procurement_optimization
+		import ai_chatbot.tools.prescriptive.production_optimization
+		import ai_chatbot.tools.prescriptive.working_capital_optimization
 		import ai_chatbot.tools.reports.finance
 		import ai_chatbot.tools.reports.purchase
 		import ai_chatbot.tools.reports.sales
