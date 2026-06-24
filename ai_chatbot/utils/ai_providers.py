@@ -154,7 +154,14 @@ class OpenAIProvider(AIProvider):
 		self.model = settings.get("model") or DEFAULT_MODELS["OpenAI"]
 		self.temperature = settings.get("temperature") or 0.7
 		self.max_tokens = settings.get("max_tokens") or 4000
-		self.base_url = "https://api.openai.com/v1"
+		# Configurable so the OpenAI-compatible client can target any /v1 endpoint
+		# (LiteLLM proxy, a self-hosted Hubert OpenAI endpoint, etc.), not just OpenAI.
+		# Order: Chatbot Settings.api_base -> site_config ai_chatbot_api_base -> OpenAI.
+		self.base_url = (
+			settings.get("api_base")
+			or frappe.conf.get("ai_chatbot_api_base")
+			or "https://api.openai.com/v1"
+		).rstrip("/")
 
 	def validate_settings(self):
 		if not self.api_key:
